@@ -1,19 +1,40 @@
-/* eslint-disable @typescript-eslint/no-empty-object-type */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
-import { z, ZodObject } from "zod/v4";
+import { z, ZodObject } from "zod";
 import { ActionError } from "./action-error";
 
-// ## 1. Result Types (No change)
+/**
+ * @description Represents the properties of an action error.
+ * @property {string} [code] - An optional error code.
+ * @property {string} message - A descriptive error message.
+ */
 export type ActionErrorProps = { code?: string; message: string };
+
+/**
+ * @description Represents a successful action result.
+ * @template TData - The type of the data returned by the action.
+ * @property {TData} data - The data returned by the action.
+ * @property {null} error - Indicates that no error occurred.
+ */
 export type ActionSuccess<TData> = { data: TData; error: null };
+
+/**
+ * @description Represents a failed action result.
+ * @property {null} data - Indicates that no data was returned.
+ * @property {ActionErrorProps} error - The error that occurred during the action.
+ */
 export type ActionFailure = { data: null; error: ActionErrorProps };
 
 /**
- * Checks if an error is an internal Next.js error (e.g., redirect, notFound).
+ * @description The standard return type for all actions created with the client.
+ * It can be either a success or a failure.
+ * @template TData - The type of the data returned by the action.
+ */
+export type ActionResult<TData> = ActionSuccess<TData> | ActionFailure;
+
+/**
+ * @description Checks if an error is an internal Next.js error (e.g., redirect, notFound).
  * These errors should be re-thrown to be handled by the Next.js framework.
- * @param error - The error to check
- * @returns true if the error is a Next.js internal error, false otherwise
+ * @param {unknown} error - The error to check.
+ * @returns {boolean} - True if the error is a Next.js internal error, false otherwise.
  */
 function isNextJsInternalError(error: unknown): boolean {
   if (typeof error !== "object" || error === null || !("digest" in error)) {
@@ -27,38 +48,13 @@ function isNextJsInternalError(error: unknown): boolean {
 }
 
 /**
- * The standard return type for all actions created with the client.
+ * @template TSchema - The Zod schema, or `undefined` if not set.
+ * @template TContext - The combined type of all middleware.
+ * @class
+ * @description A builder for creating typesafe server actions.
  */
-export type ActionResult<TData> = ActionSuccess<TData> | ActionFailure;
-
-// ## 2. Conditional Helper Types (New)
-// These types are used to correctly infer input/output
-// based on whether a schema is present.
-
-/**
- * If Schema exists, HandlerData is z.infer<Schema>.
- * If Schema does NOT exist, HandlerData is TPayload (inferred from handler).
- */
-type HandlerData<
+export class ActionBuilder<
   TSchema extends ZodObject<any> | undefined,
-  TPayload
-> = TSchema extends ZodObject<any> ? z.infer<TSchema> : TPayload;
-
-/**
- * If Schema exists, ActionPayload is z.input<Schema>.
- * If Schema does NOT exist, ActionPayload is TPayload (inferred from handler).
- */
-type ActionPayload<
-  TSchema extends ZodObject<any> | undefined,
-  TPayload
-> = TSchema extends ZodObject<any> ? z.input<TSchema> : TPayload;
-
-// ## 3. The Action Builder (Refactored)
-
-class ActionBuilder<
-  // TSchema: The Zod schema, or `undefined` if not set.
-  TSchema extends ZodObject<any> | undefined,
-  // TContext: The combined type of all middleware.
   TContext extends Record<string, unknown>
 > {
   private schema: TSchema;
@@ -73,19 +69,21 @@ class ActionBuilder<
   }
 
   /**
-   * Adds Zod object validation.
-   * Returns a new, configured ActionBuilder instance.
+   * @description Adds Zod object validation.
+   * @param {Z} schema - The Zod schema to use for validation.
+   * @returns {ActionBuilder<Z, TContext>} - A new, configured ActionBuilder instance.
    */
   public input<Z extends ZodObject<any>>(
     schema: Z
   ): ActionBuilder<Z, TContext> {
-    // Returns a new builder instance with the schema
     return new ActionBuilder({ ...this, schema });
   }
 
   /**
-   * Adds stacking middleware.
-   * Returns a new, configured ActionBuilder instance.
+   * @description Adds stacking middleware.
+   * @template TNewContext - The type of the new context returned by the middleware.
+   * @param {(ctx: TContext) => Promise<TNewContext>} newMiddleware - The middleware to add.
+   * @returns {ActionBuilder<TSchema, TContext & TNewContext>} - A new, configured ActionBuilder instance.
    */
   public use<TNewContext extends Record<string, unknown>>(
     newMiddleware: (ctx: TContext) => Promise<TNewContext>
@@ -105,35 +103,32 @@ class ActionBuilder<
   }
 
   /**
-   * Creates the final, typesafe server action.
+   * @description Creates the final, typesafe server action.
+   * @template TOutput - The output type of the action.
+   * @template TPayload - The payload type of the action, inferred from the handler if no schema is present.
+   * @param {(data: TSchema extends ZodObject<any> ? z.infer<TSchema> : TPayload, ctx: TContext) => Promise<TOutput>} handler - The action handler.
+   * @returns {(payload: TSchema extends ZodObject<any> ? z.input<TSchema> : TPayload) => Promise<ActionResult<TOutput>>} - The created server action.
    */
   public action<
     TOutput,
-    // TPayload: Inferred from the *first argument* of the handler function.
-    // This is ONLY used if no schema is present.
     TPayload
   >(
     handler: (
-      // `data` is z.infer<Schema> if schema exists, otherwise TPayload
-      data: HandlerData<TSchema, TPayload>,
+      data: TSchema extends ZodObject<any> ? z.infer<TSchema> : TPayload,
       ctx: TContext
     ) => Promise<TOutput>
   ): (
-    // `payload` is z.input<Schema> if schema exists, otherwise TPayload
-    payload: ActionPayload<TSchema, TPayload>
+    payload: TSchema extends ZodObject<any> ? z.input<TSchema> : TPayload
   ) => Promise<ActionResult<TOutput>> {
     return async (
-      payload: ActionPayload<TSchema, TPayload>
+      payload: TSchema extends ZodObject<any> ? z.input<TSchema> : TPayload
     ): Promise<ActionResult<TOutput>> => {
       try {
-        // 1. Run the entire stacked middleware chain
         const context = await this.middleware();
 
-        // 2. Validate input
-        let validatedInput: HandlerData<TSchema, TPayload>;
+        let validatedInput: TSchema extends ZodObject<any> ? z.infer<TSchema> : TPayload;
 
         if (this.schema) {
-          // Schema exists: run validation
           const result = this.schema.safeParse(payload);
           if (!result.success) {
             throw new ActionError({
@@ -141,29 +136,19 @@ class ActionBuilder<
               message: "Invalid input provided.",
             });
           }
-          // `validatedInput` is the parsed data (z.infer)
-          validatedInput = result.data as HandlerData<TSchema, TPayload>;
+          validatedInput = result.data as TSchema extends ZodObject<any> ? z.infer<TSchema> : TPayload;
         } else {
-          // No schema: `validatedInput` is just the raw payload
-          validatedInput = payload as HandlerData<TSchema, TPayload>;
+          validatedInput = payload as TSchema extends ZodObject<any> ? z.infer<TSchema> : TPayload;
         }
 
-        // 3. Run the user's action handler
         const data = await handler(validatedInput, context);
 
-        // 4. Return successful data
         return { data, error: null };
       } catch (error: unknown) {
-        // 5. Handle all errors
-
-        // --- THIS IS THE FIX ---
-        // First, check for internal Next.js errors and re-throw them
         if (isNextJsInternalError(error)) {
           throw error;
         }
-        // --- END FIX ---
 
-        // Next, check for our custom ActionError
         if (error instanceof ActionError) {
           return {
             data: null,
@@ -171,7 +156,6 @@ class ActionBuilder<
           };
         }
 
-        // Finally, handle any unexpected errors
         console.error("Unhandled action error:", error);
         return {
           data: null,
@@ -185,13 +169,24 @@ class ActionBuilder<
   }
 }
 
-// ## 4. Export the initial Client
-// We start with `undefined` schema and an empty context `{}`.
-export const actionClient = new ActionBuilder<undefined, {}>({
-  schema: undefined,
-  middleware: () => Promise.resolve({}),
-});
-
-// (You would also export your protected/admin clients here)
-// e.g.,
-// export const protectedActionClient = actionClient.use(authMiddleware);
+/**
+ * @description Creates a new action client.
+ * @template TSchema - The Zod schema, or `undefined` if not set.
+ * @template TContext - The combined type of all middleware.
+ * @param {object} [config] - Optional configuration for the action client.
+ * @param {TSchema} [config.schema] - An optional Zod schema for input validation.
+ * @param {() => Promise<TContext>} [config.middleware] - Optional middleware to run before the action.
+ * @returns {ActionBuilder<TSchema, TContext>} - A new ActionBuilder instance.
+ */
+export const createActionClient = <
+  TSchema extends ZodObject<any> | undefined = undefined,
+  TContext extends Record<string, unknown> = {}
+>(config?: {
+  schema?: TSchema;
+  middleware?: () => Promise<TContext>;
+}) => {
+  return new ActionBuilder<TSchema, TContext>({
+    schema: config?.schema ?? (undefined as TSchema),
+    middleware: config?.middleware ?? (() => Promise.resolve({} as TContext)),
+  });
+};

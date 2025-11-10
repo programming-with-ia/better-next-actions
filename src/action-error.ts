@@ -1,9 +1,8 @@
-// lib/action-error.ts
-
 /**
- * Custom error class for server actions.
- * Allows returning a structured error object from the action.
- * @param input - A simple error message string or an object with a message and optional code.
+ * @class ActionError
+ * @extends Error
+ * @description Custom error class for server actions. Allows returning a structured error object from the action.
+ * @param {string | { code?: string; message: string }} input - A simple error message string or an object with a message and optional code.
  */
 export class ActionError extends Error {
   public readonly code?: string;
