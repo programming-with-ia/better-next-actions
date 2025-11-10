@@ -53,7 +53,7 @@ function isNextJsInternalError(error: unknown): boolean {
  * @class
  * @description A builder for creating typesafe server actions.
  */
-class ActionBuilder<
+export class ActionBuilder<
   TSchema extends ZodObject<any> | undefined,
   TContext extends Record<string, unknown>
 > {
@@ -170,9 +170,23 @@ class ActionBuilder<
 }
 
 /**
- * @description The initial action client, with an undefined schema and an empty context.
+ * @description Creates a new action client.
+ * @template TSchema - The Zod schema, or `undefined` if not set.
+ * @template TContext - The combined type of all middleware.
+ * @param {object} [config] - Optional configuration for the action client.
+ * @param {TSchema} [config.schema] - An optional Zod schema for input validation.
+ * @param {() => Promise<TContext>} [config.middleware] - Optional middleware to run before the action.
+ * @returns {ActionBuilder<TSchema, TContext>} - A new ActionBuilder instance.
  */
-export const actionClient = new ActionBuilder<undefined, {}>({
-  schema: undefined,
-  middleware: () => Promise.resolve({}),
-});
+export const createActionClient = <
+  TSchema extends ZodObject<any> | undefined = undefined,
+  TContext extends Record<string, unknown> = {}
+>(config?: {
+  schema?: TSchema;
+  middleware?: () => Promise<TContext>;
+}) => {
+  return new ActionBuilder<TSchema, TContext>({
+    schema: config?.schema ?? (undefined as TSchema),
+    middleware: config?.middleware ?? (() => Promise.resolve({} as TContext)),
+  });
+};

@@ -1,4 +1,4 @@
-export { actionClient } from './action-client';
+export { createActionClient, ActionBuilder } from './action-client';
 export { ActionError } from './action-error';
 export type {
   ActionErrorProps,

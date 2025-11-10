@@ -26,10 +26,10 @@ Create a file at `/lib/action-client.ts`:
 ```typescript
 // /lib/action-client.ts
 import "server-only";
-import { actionClient, ActionError } from "better-next-actions";
+import { createActionClient, ActionError } from "better-next-actions";
 
 // This is your base, unauthenticated action client.
-export const publicActionClient = actionClient;
+export const publicActionClient = createActionClient();
 
 // --- Example: Middleware for authentication ---
 const authMiddleware = async () => {
@@ -42,7 +42,7 @@ const authMiddleware = async () => {
 };
 
 // Create a new client that uses the auth middleware.
-export const protectedActionClient = actionClient.use(authMiddleware);
+export const protectedActionClient = createActionClient().use(authMiddleware);
 
 // --- Example: Middleware for admin checks ---
 const adminMiddleware = async (ctx: { user: { id: string } }) => {
