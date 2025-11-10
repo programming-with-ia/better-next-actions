@@ -1,12 +1,49 @@
 {
   "name": "better-next-actions",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "A lightweight, modern hook for calling Next.js server actions with confidence.",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./hooks": {
+      "import": "./dist/hooks/index.mjs",
+      "require": "./dist/hooks/index.js",
+      "types": "./dist/hooks/index.d.ts"
+    }
+  },
   "scripts": {
+    "build": "tsup",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
+  "keywords": [
+    "react",
+    "nextjs",
+    "server-actions",
+    "react-hooks",
+    "typescript"
+  ],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "tsup": "^8.5.0"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
+  }
 }
