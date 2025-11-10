@@ -42,7 +42,8 @@ const authMiddleware = async () => {
 };
 
 // Create a new client that uses the auth middleware.
-export const protectedActionClient = createActionClient().use(authMiddleware);
+export const protectedActionClient = publicActionClient.use(authMiddleware);
+// export const protectedActionClient = createActionClient().use(authMiddleware); // or use new client
 
 // --- Example: Middleware for admin checks ---
 const adminMiddleware = async (ctx: { user: { id: string } }) => {
