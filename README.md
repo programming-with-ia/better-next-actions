@@ -163,3 +163,13 @@ This package does not include `react-query` hooks by default to keep the core li
 3.  You can now import and use these hooks in your client components.
 
 **Note:** You will need to have `react-query` installed in your project to use these hooks.
+
+## Companion for API Routes: `better-next-api`
+
+While `better-next-actions` is designed for Next.js Server Actions, you might need a similar solution for traditional API routes in the App Router. For that, we recommend checking out [`better-next-api`](https://github.com/programming-with-ia/better-next-api).
+
+It offers a typesafe and structured way to build your API routes with features like:
+
+-   **App Router Ready:** Built specifically for the Next.js App Router.
+-   **Middleware Support:** Compose and reuse middleware for your API routes.
+-   **Zod Schema Validation:** End-to-end validation for `searchParams` (GET), `params`, and the request `body` (POST, PUT, etc.).
